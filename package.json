@@ -3,6 +3,7 @@
     "minify": "node start.js"
   },
   "devDependencies": {
+    "fs-extra": "^8.1.0",
     "gulp": "^4.0.2",
     "gulp-clean-css": "^4.2.0",
     "gulp-uglify": "^3.0.2"
