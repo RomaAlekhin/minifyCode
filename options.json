@@ -1,10 +1,10 @@
 {
   "js": {
     "paths": ["project/js/app.js", "project/js/server.js"],
-    "dist": "dist/js/"
+    "dist": "./dist/js"
   },
   "css": {
     "paths": ["project/css/style.css"],
-    "dist": "dist/css/"
+    "dist": "./dist/css"
   }
 }
