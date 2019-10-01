@@ -1,7 +1,4 @@
 {
-  "scripts": {
-    "minify": "node start.js"
-  },
   "devDependencies": {
     "@babel/core": "^7.6.2",
     "@babel/preset-env": "^7.6.2",
