@@ -1,84 +1,102 @@
 const gulp = require("gulp");
+const hash = require("gulp-hash-filename");
+const babel = require("gulp-babel");
 const cleanCSS = require("gulp-clean-css");
-const uglify = require("gulp-uglify");
 const fs = require("fs-extra");
-const crypto = require("crypto");
-
-const options = require("./options.json");
 
 const updateDir = (folder = "dist") => {
-  try {
-    const stats = fs.statSync(folder);
-    if (stats.isDirectory()) {
+  return new Promise((resolve, reject) => {
+    try {
+      const stats = fs.statSync(folder);
+      if (!stats.isDirectory()) return reject();
+
       console.log(stats.isDirectory());
       console.log(`removing folder "${folder}"`);
       fs.remove(folder)
         .then(() => {
           fs.mkdirSync(folder, { recursive: true });
+          return resolve();
         })
-        .catch(err => console.error(err));
-      // fs.rmdirSync(folder, { recursive: true });
+        .catch(err => {
+          console.error(err);
+          return reject();
+        });
+    } catch (err) {
+      console.log(`creating folder "${folder}"`);
+      fs.mkdirSync(folder, { recursive: true });
+      return resolve();
     }
-  } catch (err) {
-    console.log(`creating folder "${folder}"`);
-    fs.mkdirSync(folder, { recursive: true });
-  }
-};
-
-const writeFile = (base, path, data) => {
-  const getFileName = (path, hash) => {
-    const all = path.replace(/\\/g, "/").split("/");
-    const file = all.slice(-1)[0];
-
-    const extension = file.split(".").slice(-1);
-    const name = file.split(".").slice(0, -1);
-
-    return [name, hash, extension].join(".");
-  };
-
-  const hash = crypto
-    .createHash("md5")
-    .update(data)
-    .digest("hex")
-    .slice(0, 8);
-
-  const fileName = getFileName(path, hash);
-
-  fs.appendFile(`${base}/${fileName}`, data, () => {
-    console.log(fileName);
-    console.log(data);
-    console.log("done!");
   });
 };
 
-const minifyFiles = (data = {}) => {
-  const { js = [], css = [] } = data;
-
-  updateDir(js.dist);
-  js.paths.forEach(jsPath => {
-    const parsedData = jsPath;
-    writeFile(js.dist, jsPath, parsedData);
-  });
-
-  updateDir(css.dist);
-  css.paths.forEach(cssPath => {
-    const parsedData = cssPath;
-    writeFile(css.dist, cssPath, parsedData);
-  });
+const parseJs = (path, dist) => {
+  return gulp
+    .src(path)
+    .pipe(
+      babel({
+        presets: ["@babel/preset-env", ["minify", { keepFnName: true }]],
+        comments: false
+      })
+    )
+    .pipe(
+      hash({
+        format: "{name}.{hash:8}{ext}"
+      })
+    )
+    .pipe(gulp.dest(dist));
 };
 
-// const { css = {}, js = {} } = options;
-// const data = { js: js.paths, css: css.paths };
+const parseCss = (path, dist) => {
+  return gulp
+    .src(path)
+    .pipe(cleanCSS({ compatibility: "ie8" }))
+    .pipe(
+      hash({
+        format: "{name}.{hash:8}{ext}"
+      })
+    )
+    .pipe(gulp.dest(dist));
+};
 
-minifyFiles(options);
-/*
-try {
-  const filePaths = fs.readFileSync("./filePaths.json", "utf8");
-  const data = JSON.parse(filePaths);
-  updateDir(jsDistFolder);
-  updateDir(cssDistFolder);
-  minifyFiles(data);
-} catch (err) {
-  console.error(err);
-}
-*/
+const defaultOptions = require("./options.json");
+const minifyFiles = (options = defaultOptions) => {
+  const { js = [], css = [] } = options;
+
+  updateDir(js.dist)
+    .then(() => {
+      try {
+        js.paths.forEach(path => {
+          if (fs.existsSync(path)) {
+            parseJs(path, js.dist);
+          } else {
+            console.log(`файл "${path} не найден."`);
+          }
+        });
+      } catch (err) {
+        console.error(err);
+      }
+    })
+    .catch(() => {
+      console.error("Не удалось обновить папку со скриптами");
+    });
+
+  updateDir(css.dist)
+    .then(() => {
+      try {
+        css.paths.forEach(path => {
+          if (fs.existsSync(path)) {
+            parseCss(path, css.dist);
+          } else {
+            console.log(`файл "${path} не найден."`);
+          }
+        });
+      } catch (err) {
+        console.error(err);
+      }
+    })
+    .catch(() => {
+      console.error("Не удалось обновить папку со стилями");
+    });
+};
+
+minifyFiles();
